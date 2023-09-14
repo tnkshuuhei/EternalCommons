@@ -227,4 +227,83 @@ contract EternalCore is Ownable, AccessControl {
     ) public view returns (Project memory) {
         return projects[_grantId][_projectId];
     }
+
+    // get sum of sqrt vote
+    // get squared sum of sqrt vote
+    // sum of sqrt vote
+    // matching pool
+    // calculate matching * suquare sum of sqrt vote / total squared sum of sqrt vote
+    struct Allocation {
+        uint256 projectId;
+        uint256 amount;
+        uint256 sqrtSumSqared;
+    }
+    mapping(uint256 => Allocation[]) public allocation; //grantId to Allocation
+
+    function sqrt(uint256 x) public pure returns (uint256 y) {
+        uint256 z = (x + 1) / 2;
+        y = x;
+        while (z < y) {
+            y = z;
+            z = (x / z + z) / 2;
+        }
+    }
+
+    function calculateSqrtSum(
+        uint256 _grantId,
+        uint256 _projectId
+    ) internal view returns (uint256) {
+        uint256 sqrtSum = 0;
+        for (uint256 i = 0; i < votes[_grantId][_projectId].length; i++) {
+            sqrtSum += sqrt(votes[_grantId][_projectId][i].weight);
+        }
+        return sqrtSum;
+    }
+
+    function _calculateAllocation(
+        uint256 _grantpool,
+        uint256 _grantId
+    ) internal returns (Allocation[] memory) {
+        uint256 totalSqrtSumSquared = 0;
+        for (uint256 i = 0; i < projects[_grantId].length; i++) {
+            totalSqrtSumSquared += calculateSqrtSum(_grantId, i) ** 2;
+        }
+        uint256 _sqrtSumSqared = 0;
+        for (uint256 i = 0; i < projects[_grantId].length; i++) {
+            _sqrtSumSqared = calculateSqrtSum(_grantId, i) ** 2;
+            Allocation memory newAllocation = Allocation({
+                projectId: i,
+                amount: (_grantpool * _sqrtSumSqared) / totalSqrtSumSquared,
+                sqrtSumSqared: _sqrtSumSqared
+            });
+            allocation[_grantId].push(newAllocation);
+        }
+        return allocation[_grantId];
+    }
+
+    function viewMatchingAmount(
+        uint256 _grantId,
+        uint256 _grantPool
+    ) public view returns (uint256[] memory) {
+        uint256 totalSqrtSumSquared = 0;
+        uint256[] memory matchingAmounts = new uint256[](
+            projects[_grantId].length
+        );
+        for (uint256 i = 0; i < projects[_grantId].length; i++) {
+            totalSqrtSumSquared += calculateSqrtSum(_grantId, i) ** 2;
+        }
+        for (uint256 i = 0; i < projects[_grantId].length; i++) {
+            uint256 _sqrtSumSqared = calculateSqrtSum(_grantId, i) ** 2;
+            matchingAmounts[i] =
+                (_grantPool * _sqrtSumSqared) /
+                totalSqrtSumSquared;
+        }
+        return matchingAmounts;
+    }
+
+    function getAllocation(
+        uint256 _grantId
+    ) public view returns (Allocation[] memory) {
+        return allocation[_grantId];
+    }
 }
