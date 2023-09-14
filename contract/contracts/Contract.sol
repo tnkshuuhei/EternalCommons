@@ -4,6 +4,15 @@ pragma solidity ^0.8.9;
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
+/* TODO List
+- access control
+- verify badgeholder function
+- onlybadgeholder modifier
+- allocate function
+- calculate allocation
+- create pool
+ */
+
 contract Contract is Ownable, AccessControl {
     struct Grant {
         uint256 id;
@@ -130,6 +139,4 @@ contract Contract is Ownable, AccessControl {
     ) public view returns (Vote[] memory) {
         return votes[_grantId][_projectId];
     }
-    // function Allocate(){}
-    // function CalculateAllocation(){}
 }
