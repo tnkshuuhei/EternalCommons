@@ -16,7 +16,7 @@ import {InvalidEAS, uncheckedInc} from "@ethereum-attestation-service/eas-contra
 - create pool
  */
 
-contract Contract is Ownable, AccessControl {
+contract EternalCore is Ownable, AccessControl {
     struct Grant {
         uint256 id;
         uint16 round;

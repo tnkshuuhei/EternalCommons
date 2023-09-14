@@ -1,6 +1,7 @@
 {
   "scripts": {
-    "build": "npx thirdweb build"
+    "build": "npx hardhat compile",
+		"test": "npx hardhat test"
   },
   "name": "hardhat-project",
   "devDependencies": {
