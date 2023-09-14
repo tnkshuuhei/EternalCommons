@@ -1,4 +1,7 @@
 {
+  "scripts": {
+    "build": "npx thirdweb build"
+  },
   "name": "hardhat-project",
   "devDependencies": {
     "@nomicfoundation/hardhat-ethers": "^3.0.4",
