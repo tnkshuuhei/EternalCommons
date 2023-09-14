@@ -37,15 +37,34 @@ contract Contract is Ownable, AccessControl {
         string message;
         uint256 createdTimestamp;
     }
+    struct Badgeholder {
+        uint256 id;
+        address holderAddress;
+        uint256 votingPower;
+    }
     IEAS public eas;
-    mapping(uint256 => mapping(uint256 => Vote[])) public votes;
-
-    mapping(uint256 => address[]) public badgeholder; //grantId to badgeholder
+    mapping(uint256 => mapping(uint256 => Vote[])) public votes; // grantId to projectId to votes
+    mapping(uint256 => Badgeholder[]) public badgeholder; //grantId to badgeholder
     mapping(uint256 => Project[]) public projects; //map grantId to projects
 
     Grant[] public grantList;
     uint256 public grantListLength;
     uint256 public projectListLength;
+
+    function setUpBadgeholder(
+        uint256 _grantId,
+        address[] memory _holderAddress,
+        uint256[] memory _votingPower
+    ) public {
+        for (uint256 i = 0; i < _holderAddress.length; i++) {
+            Badgeholder memory newBadgeholder = Badgeholder({
+                id: badgeholder[_grantId].length,
+                holderAddress: _holderAddress[i],
+                votingPower: _votingPower[i]
+            });
+            badgeholder[_grantId].push(newBadgeholder);
+        }
+    }
 
     function CreateGrant(
         address _organizer,
