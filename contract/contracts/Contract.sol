@@ -4,6 +4,7 @@ pragma solidity ^0.8.9;
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import {IEAS, Attestation, AttestationRequest, AttestationRequestData} from "@ethereum-attestation-service/eas-contracts/contracts/IEAS.sol";
+import {ISchemaRegistry, ISchemaResolver, SchemaRecord} from "@ethereum-attestation-service/eas-contracts/contracts/ISchemaRegistry.sol";
 import {InvalidEAS, uncheckedInc} from "@ethereum-attestation-service/eas-contracts/contracts/Common.sol";
 
 /* TODO List
@@ -43,6 +44,15 @@ contract Contract is Ownable, AccessControl {
         uint256 votingPower;
     }
     IEAS public eas;
+    struct EASInfo {
+        IEAS eas;
+        ISchemaRegistry schemaRegistry;
+        bytes32 schemaUID;
+        string schema;
+        bool revocable;
+    }
+    EASInfo public easInfo;
+    mapping(uint256 => EASInfo[]) public grantEASInfo; // grantId to EASInfo
     mapping(uint256 => mapping(uint256 => Vote[])) public votes; // grantId to projectId to votes
     mapping(uint256 => Badgeholder[]) public badgeholder; //grantId to badgeholder
     mapping(uint256 => Project[]) public projects; //map grantId to projects
@@ -83,15 +93,7 @@ contract Contract is Ownable, AccessControl {
         return grantListLength++;
     }
 
-    struct EASInfo {
-        IEAS eas;
-        // ISchemaRegistry schemaRegistry;
-        bytes32 schemaUID;
-        string schema;
-        bool revocable;
-    }
-    EASInfo public easInfo;
-
+    // fix grantEASInfo
     function _grantEASAttestation(
         address _recipientId,
         uint64 _expirationTime,
@@ -163,12 +165,13 @@ contract Contract is Ownable, AccessControl {
     function _vote(
         uint256 _grantId,
         uint256 _projectId,
+        uint256 _voteWeight,
         string memory _message
     ) public {
         // check if msg.sender is the badgeholder
         Vote memory newVote = Vote({
             voter: msg.sender,
-            weight: 1, //tbd
+            weight: _voteWeight, //tbd
             message: _message,
             createdTimestamp: block.timestamp
         });
@@ -178,10 +181,11 @@ contract Contract is Ownable, AccessControl {
     function batchvote(
         uint256 _grantId,
         uint256[] memory _projectId,
+        uint256[] memory _voteWeight,
         string[] memory _message
     ) public {
         for (uint256 i = 0; i < _projectId.length; i++) {
-            _vote(_grantId, _projectId[i], _message[i]);
+            _vote(_grantId, _projectId[i], _voteWeight[i], _message[i]);
         }
     }
 
@@ -190,5 +194,32 @@ contract Contract is Ownable, AccessControl {
         uint256 _projectId
     ) public view returns (Vote[] memory) {
         return votes[_grantId][_projectId];
+    }
+
+    function _initializeEAS(
+        IEAS _eas, // EAS contract address
+        ISchemaRegistry _schemaRegistry, // public registry address
+        bytes32 _schemaUID,
+        uint256 _grantId
+    ) internal {
+        SchemaRecord memory record = _schemaRegistry.getSchema(_schemaUID);
+        EASInfo memory newEASInfo = EASInfo({
+            eas: _eas,
+            schemaRegistry: _schemaRegistry,
+            schema: record.schema,
+            schemaUID: _schemaUID,
+            revocable: record.revocable
+        });
+        grantEASInfo[_grantId].push(newEASInfo);
+    }
+
+    function getGrantEAS(
+        uint256 _grantId
+    ) public view returns (EASInfo[] memory) {
+        require(
+            grantEASInfo[_grantId].length > 0,
+            "No EAS is initialized for this grant"
+        );
+        return grantEASInfo[_grantId];
     }
 }
