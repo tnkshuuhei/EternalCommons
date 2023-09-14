@@ -3,6 +3,8 @@ pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import {IEAS, Attestation, AttestationRequest, AttestationRequestData} from "@ethereum-attestation-service/eas-contracts/contracts/IEAS.sol";
+import {InvalidEAS, uncheckedInc} from "@ethereum-attestation-service/eas-contracts/contracts/Common.sol";
 
 /* TODO List
 - access control
@@ -35,6 +37,7 @@ contract Contract is Ownable, AccessControl {
         string message;
         uint256 createdTimestamp;
     }
+    IEAS public eas;
     mapping(uint256 => mapping(uint256 => Vote[])) public votes;
 
     mapping(uint256 => address[]) public badgeholder; //grantId to badgeholder
@@ -59,6 +62,36 @@ contract Contract is Ownable, AccessControl {
         });
         grantList.push(newGrant);
         return grantListLength++;
+    }
+
+    struct EASInfo {
+        IEAS eas;
+        // ISchemaRegistry schemaRegistry;
+        bytes32 schemaUID;
+        string schema;
+        bool revocable;
+    }
+    EASInfo public easInfo;
+
+    function _grantEASAttestation(
+        address _recipientId,
+        uint64 _expirationTime,
+        bytes memory _data,
+        uint256 _value
+    ) internal returns (bytes32) {
+        AttestationRequest memory attestationRequest = AttestationRequest(
+            easInfo.schemaUID,
+            AttestationRequestData({
+                recipient: _recipientId,
+                expirationTime: _expirationTime,
+                revocable: easInfo.revocable,
+                refUID: 0, // tbd
+                data: _data,
+                value: _value
+            })
+        );
+        // return new attestation UID
+        return easInfo.eas.attest(attestationRequest);
     }
 
     function RegisterApplication(
