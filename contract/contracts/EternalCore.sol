@@ -13,7 +13,7 @@ import {InvalidEAS, uncheckedInc} from "@ethereum-attestation-service/eas-contra
 - onlybadgeholder modifier
 - allocate function
 - calculate allocation
-- create pool
+- create pool -> poolcontract
  */
 
 contract EternalCore is Ownable, AccessControl {
@@ -60,6 +60,23 @@ contract EternalCore is Ownable, AccessControl {
     Grant[] public grantList;
     uint256 public grantListLength;
     uint256 public projectListLength;
+
+    function _initializeEAS(
+        IEAS _eas, // EAS contract address
+        ISchemaRegistry _schemaRegistry, // public registry address
+        bytes32 _schemaUID,
+        uint256 _grantId
+    ) internal {
+        SchemaRecord memory record = _schemaRegistry.getSchema(_schemaUID);
+        EASInfo memory newEASInfo = EASInfo({
+            eas: _eas,
+            schemaRegistry: _schemaRegistry,
+            schema: record.schema,
+            schemaUID: _schemaUID,
+            revocable: record.revocable
+        });
+        grantEASInfo[_grantId].push(newEASInfo);
+    }
 
     function setUpBadgeholder(
         uint256 _grantId,
@@ -143,26 +160,18 @@ contract EternalCore is Ownable, AccessControl {
         }
     }
 
-    // onlybadgeholder modifier
-    function DenyApplication(uint256 _grantId, uint256 _projectId) external {
-        projects[_grantId][_projectId].isAccepted = false;
-    }
-
-    function getAllProject(
-        uint256 _grantId
-    ) public view returns (Project[] memory) {
-        return projects[_grantId];
-    }
-
-    function getProjectDetail(
+    function DenyApplication(
         uint256 _grantId,
-        uint256 _projectId
-    ) public view returns (Project memory) {
-        return projects[_grantId][_projectId];
+        uint256[] memory _projectId
+    ) public {
+        for (uint256 i = 0; i < _projectId.length; i++) {
+            uint256 _id = _projectId[i];
+            projects[_grantId][_id].isAccepted = false;
+        }
     }
 
     // add access control and check if the user is the badgeholder
-    function _vote(
+    function vote(
         uint256 _grantId,
         uint256 _projectId,
         uint256 _voteWeight,
@@ -185,32 +194,8 @@ contract EternalCore is Ownable, AccessControl {
         string[] memory _message
     ) public {
         for (uint256 i = 0; i < _projectId.length; i++) {
-            _vote(_grantId, _projectId[i], _voteWeight[i], _message[i]);
+            vote(_grantId, _projectId[i], _voteWeight[i], _message[i]);
         }
-    }
-
-    function getVote(
-        uint256 _grantId,
-        uint256 _projectId
-    ) public view returns (Vote[] memory) {
-        return votes[_grantId][_projectId];
-    }
-
-    function _initializeEAS(
-        IEAS _eas, // EAS contract address
-        ISchemaRegistry _schemaRegistry, // public registry address
-        bytes32 _schemaUID,
-        uint256 _grantId
-    ) internal {
-        SchemaRecord memory record = _schemaRegistry.getSchema(_schemaUID);
-        EASInfo memory newEASInfo = EASInfo({
-            eas: _eas,
-            schemaRegistry: _schemaRegistry,
-            schema: record.schema,
-            schemaUID: _schemaUID,
-            revocable: record.revocable
-        });
-        grantEASInfo[_grantId].push(newEASInfo);
     }
 
     function getGrantEAS(
@@ -221,5 +206,25 @@ contract EternalCore is Ownable, AccessControl {
             "No EAS is initialized for this grant"
         );
         return grantEASInfo[_grantId];
+    }
+
+    function getVote(
+        uint256 _grantId,
+        uint256 _projectId
+    ) public view returns (Vote[] memory) {
+        return votes[_grantId][_projectId];
+    }
+
+    function getAllProject(
+        uint256 _grantId
+    ) public view returns (Project[] memory) {
+        return projects[_grantId];
+    }
+
+    function getProjectDetail(
+        uint256 _grantId,
+        uint256 _projectId
+    ) public view returns (Project memory) {
+        return projects[_grantId][_projectId];
     }
 }
