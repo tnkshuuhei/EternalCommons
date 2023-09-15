@@ -7,14 +7,6 @@ import {ISchemaRegistry, ISchemaResolver, SchemaRecord} from "@ethereum-attestat
 import {InvalidEAS, uncheckedInc} from "@ethereum-attestation-service/eas-contracts/contracts/Common.sol";
 import {IEternalCore} from "./interface/IEternalCore.sol";
 
-/* TODO List
-- access control
-- verify badgeholder function
-- onlybadgeholder modifier
-- allocate function
-- calculate allocation
-- create pool -> poolcontract
- */
 
 contract EternalCore is AccessControl, IEternalCore {
     IEAS public eas;
