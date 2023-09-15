@@ -2,10 +2,10 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/access/AccessControl.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 import {IEAS, Attestation, AttestationRequest, AttestationRequestData} from "@ethereum-attestation-service/eas-contracts/contracts/IEAS.sol";
 import {ISchemaRegistry, ISchemaResolver, SchemaRecord} from "@ethereum-attestation-service/eas-contracts/contracts/ISchemaRegistry.sol";
 import {InvalidEAS, uncheckedInc} from "@ethereum-attestation-service/eas-contracts/contracts/Common.sol";
+import {IEternalCore} from "./interface/IEternalCore.sol";
 
 /* TODO List
 - access control
@@ -16,42 +16,11 @@ import {InvalidEAS, uncheckedInc} from "@ethereum-attestation-service/eas-contra
 - create pool -> poolcontract
  */
 
-contract EternalCore is Ownable, AccessControl {
-    struct Grant {
-        uint256 id;
-        uint16 round;
-        address organizer;
-        uint256 budget;
-        string organizationInfo;
-    }
-    struct Project {
-        uint256 id;
-        address ownerAddress;
-        address payoutAddress;
-        string dataJsonStringified;
-        bool isAccepted;
-        uint256 totalFundReceived;
-    }
-    struct Vote {
-        address voter;
-        uint256 weight;
-        string message;
-        uint256 createdTimestamp;
-    }
-    struct Badgeholder {
-        uint256 id;
-        address holderAddress;
-        uint256 votingPower;
-    }
+contract EternalCore is AccessControl, IEternalCore {
     IEAS public eas;
-    struct EASInfo {
-        IEAS eas;
-        ISchemaRegistry schemaRegistry;
-        bytes32 schemaUID;
-        string schema;
-        bool revocable;
-    }
     EASInfo public easInfo;
+
+    mapping(uint256 => Allocation[]) public allocation; //grantId to Allocation
     mapping(uint256 => EASInfo[]) public grantEASInfo; // grantId to EASInfo
     mapping(uint256 => mapping(uint256 => Vote[])) public votes; // grantId to projectId to votes
     mapping(uint256 => Badgeholder[]) public badgeholder; //grantId to badgeholder
@@ -157,6 +126,7 @@ contract EternalCore is Ownable, AccessControl {
         for (uint256 i = 0; i < _projectId.length; i++) {
             uint256 _id = _projectId[i];
             projects[_grantId][_id].isAccepted = true;
+            emit ProjectApproved(projects[_grantId][_id]);
         }
     }
 
@@ -233,12 +203,6 @@ contract EternalCore is Ownable, AccessControl {
     // sum of sqrt vote
     // matching pool
     // calculate matching * suquare sum of sqrt vote / total squared sum of sqrt vote
-    struct Allocation {
-        uint256 projectId;
-        uint256 amount;
-        uint256 sqrtSumSqared;
-    }
-    mapping(uint256 => Allocation[]) public allocation; //grantId to Allocation
 
     function sqrt(uint256 x) public pure returns (uint256 y) {
         uint256 z = (x + 1) / 2;
