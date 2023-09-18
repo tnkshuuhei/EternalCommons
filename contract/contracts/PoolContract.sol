@@ -4,32 +4,6 @@ pragma solidity ^0.8.9;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract PoolContract {
-    // function _createPool(
-    //     address _organizer,
-    //     address _token,
-    //     uint256 _amount,
-    //     string memory _organizationInfo
-    // ) internal returns (address pool) {
-    //     bytes memory bytecode = type(PoolContract).creationCode;
-    //     bytes32 salt = keccak256(
-    //         abi.encodePacked(_organizer, _organizationInfo)
-    //     );
-    //     assembly {
-    //         pool := create2(0, add(bytecode, 32), mload(bytecode), salt)
-    //     }
-    //     Pool memory newPool = Pool({
-    //         owner: _organizer,
-    //         token: _token,
-    //         totalDeposited: 0,
-    //         poolAddress: pool
-    //     });
-    //     pools[pool] = newPool;
-    //     allPools.push(pool);
-    //     _deposit(pool, _token, _amount);
-    //     emit PoolCreated(pool, msg.sender, _token, _amount);
-    //     return pool;
-    // }
-
     function _depositETH(
         address _pool,
         uint256 _amount

@@ -9,7 +9,7 @@ import {ISchemaRegistry, ISchemaResolver, SchemaRecord} from "@ethereum-attestat
 import {InvalidEAS, uncheckedInc} from "@ethereum-attestation-service/eas-contracts/contracts/Common.sol";
 import {IEternalCore} from "./interface/IEternalCore.sol";
 import {IPool} from "./interface/IPool.sol";
-import {PoolContract} from "./PoolFactory.sol";
+import {PoolContract} from "./PoolContract.sol";
 
 contract EternalCore is AccessControl, IEternalCore {
     IEAS public eas;
@@ -282,7 +282,7 @@ contract EternalCore is AccessControl, IEternalCore {
         return allocation[_grantId];
     }
 
-    function viewMatchingAmount(
+    function getMatchingAmount(
         uint256 _grantId,
         uint256 _grantPool
     ) public view returns (uint256[] memory) {
