@@ -4,12 +4,20 @@ import {IEAS} from "@ethereum-attestation-service/eas-contracts/contracts/IEAS.s
 import {ISchemaRegistry} from "@ethereum-attestation-service/eas-contracts/contracts/ISchemaRegistry.sol";
 
 interface IEternalCore {
+    struct Pool {
+        address owner;
+        address token;
+        uint256 totalDeposited;
+        address poolAddress;
+    }
+
     struct Grant {
         uint256 id;
         uint16 round;
         address organizer;
         uint256 budget;
         string organizationInfo;
+        address pool;
     }
     struct Project {
         uint256 id;
@@ -46,6 +54,12 @@ interface IEternalCore {
         address ownerAddress,
         address payoutAddress,
         string dataJsonStringified
+    );
+    event PoolCreated(
+        address indexed pool,
+        address indexed owner,
+        address indexed token,
+        uint256 amount
     );
     struct EASInfo {
         IEAS eas;

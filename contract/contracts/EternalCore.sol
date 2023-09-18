@@ -2,11 +2,14 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/access/AccessControl.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
 import {IEAS, Attestation, AttestationRequest, AttestationRequestData} from "@ethereum-attestation-service/eas-contracts/contracts/IEAS.sol";
 import {ISchemaRegistry, ISchemaResolver, SchemaRecord} from "@ethereum-attestation-service/eas-contracts/contracts/ISchemaRegistry.sol";
 import {InvalidEAS, uncheckedInc} from "@ethereum-attestation-service/eas-contracts/contracts/Common.sol";
 import {IEternalCore} from "./interface/IEternalCore.sol";
-
+import {IPool} from "./interface/IPool.sol";
+import {PoolContract} from "./PoolFactory.sol";
 
 contract EternalCore is AccessControl, IEternalCore {
     IEAS public eas;
@@ -21,6 +24,41 @@ contract EternalCore is AccessControl, IEternalCore {
     Grant[] public grantList;
     uint256 public grantListLength;
     uint256 public projectListLength;
+
+    IERC20 public token;
+    address[] public allPools;
+    mapping(address => Pool) public pools;
+
+    function _createPool(
+        address _organizer,
+        address _token,
+        uint256 _amount,
+        string memory _organizationInfo
+    ) internal returns (address pool) {
+        bytes memory bytecode = type(PoolContract).creationCode;
+        bytes32 salt = keccak256(
+            abi.encodePacked(_organizer, _organizationInfo)
+        );
+        assembly {
+            pool := create2(0, add(bytecode, 32), mload(bytecode), salt)
+        }
+        uint256 deposited;
+        if (_token == address(0)) {
+            deposited = IPool(pool)._depositETH(pool, _amount);
+        } else {
+            deposited = IPool(pool)._deposit(pool, _token, _amount);
+        }
+        Pool memory newPool = Pool({
+            owner: _organizer,
+            token: _token,
+            totalDeposited: deposited,
+            poolAddress: pool
+        });
+        pools[pool] = newPool;
+        allPools.push(pool);
+        emit PoolCreated(pool, msg.sender, _token, deposited);
+        return pool;
+    }
 
     function _initializeEAS(
         IEAS _eas, // EAS contract address
@@ -56,16 +94,23 @@ contract EternalCore is AccessControl, IEternalCore {
 
     function CreateGrant(
         address _organizer,
+        address _token,
         uint256 _budget,
         string memory _organizationInfo
     ) public returns (uint256) {
+        address pooladdress = _createPool(
+            _organizer,
+            _token,
+            _budget,
+            _organizationInfo
+        );
         Grant memory newGrant = Grant({
             id: grantListLength, //tbd
             round: 0, //tbd
             organizer: _organizer,
             budget: _budget,
-            organizationInfo: _organizationInfo
-            // budgeholder: budgeholder
+            organizationInfo: _organizationInfo,
+            pool: pooladdress
         });
         grantList.push(newGrant);
         return grantListLength++;
