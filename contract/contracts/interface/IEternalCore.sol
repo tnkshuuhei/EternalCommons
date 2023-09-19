@@ -43,6 +43,13 @@ interface IEternalCore {
         uint256 amount;
         uint256 sqrtSumSqared;
     }
+    struct EASInfo {
+        IEAS eas;
+        ISchemaRegistry schemaRegistry;
+        bytes32 schemaUID;
+        string schema;
+        bool revocable;
+    }
     event GrantCreated(
         uint256 grantId,
         address organizer,
@@ -61,13 +68,6 @@ interface IEternalCore {
         address indexed token,
         uint256 amount
     );
-    struct EASInfo {
-        IEAS eas;
-        ISchemaRegistry schemaRegistry;
-        bytes32 schemaUID;
-        string schema;
-        bool revocable;
-    }
     event ProjectApproved(Project project);
     event VoteCreated(
         uint256 grantId,
@@ -87,4 +87,5 @@ interface IEternalCore {
         uint256 amount,
         uint256 sqrtSumSqared
     );
+    event Allocated(uint256 grantId, uint256 projectId, uint256 amount);
 }

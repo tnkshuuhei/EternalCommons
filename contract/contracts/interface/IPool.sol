@@ -15,7 +15,7 @@ interface IPool {
 
     function distribute(
         address _token,
-        address[] memory _recipients,
-        uint256[] memory _amounts
+        address _recipients,
+        uint256 _amounts
     ) external returns (bool);
 }

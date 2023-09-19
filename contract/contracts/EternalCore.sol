@@ -20,6 +20,7 @@ contract EternalCore is AccessControl, IEternalCore {
     mapping(uint256 => mapping(uint256 => Vote[])) public votes; // grantId to projectId to votes
     mapping(uint256 => Badgeholder[]) public badgeholder; //grantId to badgeholder
     mapping(uint256 => Project[]) public projects; //map grantId to projects
+    mapping(address => Pool) public pools; //map pool address to pool
 
     Grant[] public grantList;
     uint256 public grantListLength;
@@ -27,7 +28,6 @@ contract EternalCore is AccessControl, IEternalCore {
 
     IERC20 public token;
     address[] public allPools;
-    mapping(address => Pool) public pools;
 
     function _createPool(
         address _organizer,
@@ -280,6 +280,23 @@ contract EternalCore is AccessControl, IEternalCore {
             allocation[_grantId].push(newAllocation);
         }
         return allocation[_grantId];
+    }
+
+    function allcate(uint256 _grantId) external {
+        uint256 grantPool = grantList[_grantId].budget;
+        address poolAddress = grantList[_grantId].pool;
+        uint256[] memory estAllocation = getMatchingAmount(grantPool, _grantId);
+        require(grantPool > 0, "Grant pool must be greater than zero");
+        for (uint256 i = 0; i < projects[_grantId].length; i++) {
+            uint256 amount = estAllocation[i];
+            Project storage project = projects[_grantId][i];
+            IPool(poolAddress).distribute(
+                poolAddress,
+                project.payoutAddress,
+                amount
+            );
+            emit Allocated(_grantId, project.id, amount);
+        }
     }
 
     function getMatchingAmount(

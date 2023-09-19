@@ -2,12 +2,27 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IEternalCore} from "./interface/IEternalCore.sol";
 
 contract PoolContract {
+    IEternalCore internal immutable corecontract;
+
+    constructor(IEternalCore _corecontract) {
+        corecontract = _corecontract;
+    }
+
+    modifier onlyCore() {
+        require(
+            msg.sender == address(corecontract),
+            "Only grant owner can call this function"
+        );
+        _;
+    }
+
     function _depositETH(
         address _pool,
         uint256 _amount
-    ) external returns (uint256) {
+    ) external onlyCore returns (uint256) {
         (bool sent, ) = _pool.call{value: _amount}("");
         require(sent, "Failed to send Ether");
         return _amount;
@@ -17,7 +32,7 @@ contract PoolContract {
         address _pool,
         address _token,
         uint256 _amount
-    ) external returns (uint256) {
+    ) external onlyCore returns (uint256) {
         bool sent = IERC20(_token).transferFrom(msg.sender, _pool, _amount);
         require(sent, "Failed to Deposit Token");
         // pools[_pool].totalDeposited += _amount;
@@ -26,16 +41,15 @@ contract PoolContract {
 
     function distribute(
         address _token,
-        address[] memory _recipients,
-        uint256[] memory _amounts
-    ) external returns (bool) {
-        require(
-            _recipients.length == _amounts.length && _recipients.length > 0,
-            "Invalid Input"
+        address _recipients,
+        uint256 _amounts
+    ) external onlyCore returns (bool sent) {
+        require(_recipients != address(0), "Invalid Address");
+        sent = IERC20(_token).transferFrom(
+            address(this),
+            _recipients,
+            _amounts
         );
-        for (uint256 i = 0; i < _recipients.length; i++) {
-            IERC20(_token).transfer(_recipients[i], _amounts[i]);
-        }
-        return true;
+        return sent;
     }
 }
