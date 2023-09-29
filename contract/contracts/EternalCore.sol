@@ -11,13 +11,14 @@ import {IEternalCore} from "./interface/IEternalCore.sol";
 import {IPool} from "./interface/IPool.sol";
 import {PoolContract} from "./PoolContract.sol";
 
-contract EternalCore is AccessControl, IEternalCore {
+contract EternalCore is IEternalCore {
     IEAS public eas;
     EASInfo public easInfo;
 
     mapping(uint256 => Allocation[]) public grantIdToAllocations; //grantId to Allocation
     mapping(uint256 => EASInfo) public grantIdToEASInfo; // grantId to EASInfo
-    mapping(uint256 => mapping(uint256 => Vote[])) public grantIdToProjectIdToVotes; // grantId to projectId to votes
+    mapping(uint256 => mapping(uint256 => Vote[]))
+        public grantIdToProjectIdToVotes; // grantId to projectId to votes
     mapping(uint256 => Badgeholder[]) public grantIdToBadgeholders; //grantId to badgeholder
     mapping(uint256 => Project[]) public grantIdToProjects; //map grantId to projects
     mapping(address => Pool) public addressToPool; //map pool address to pool
@@ -28,54 +29,6 @@ contract EternalCore is AccessControl, IEternalCore {
 
     IERC20 public token;
     address[] public allPools;
-
-    function _createPool(
-        address _organizer,
-        address _token,
-        uint256 _amount,
-        string memory _organizationInfo
-    ) internal returns (address pool) {
-        bytes memory bytecode = type(PoolContract).creationCode;
-        bytes32 salt = keccak256(
-            abi.encodePacked(_organizer, _organizationInfo)
-        );
-        assembly {
-            pool := create2(0, add(bytecode, 32), mload(bytecode), salt)
-        }
-        uint256 deposited;
-        if (_token == address(0)) {
-            deposited = IPool(pool)._depositETH(pool, _amount);
-        } else {
-            deposited = IPool(pool)._deposit(pool, _token, _amount);
-        }
-        Pool memory newPool = Pool({
-            owner: _organizer,
-            token: _token,
-            totalDeposited: deposited,
-            poolAddress: pool
-        });
-        addressToPool[pool] = newPool;
-        allPools.push(pool);
-        emit PoolCreated(pool, msg.sender, _token, deposited);
-        return pool;
-    }
-
-    function _initializeEAS(
-        address _eas, // EAS contract address
-        ISchemaRegistry _schemaRegistry, // public registry address
-        bytes32 _schemaUID,
-        uint256 _grantId
-    ) internal {
-        SchemaRecord memory record = _schemaRegistry.getSchema(_schemaUID);
-        EASInfo memory newEASInfo = EASInfo({
-            eas: _eas,
-            schemaRegistry: _schemaRegistry,
-            schema: record.schema,
-            schemaUID: _schemaUID,
-            revocable: record.revocable
-        });
-        grantIdToEASInfo[_grantId] = newEASInfo;
-    }
 
     function setUpBadgeholder(
         uint256 _grantId,
@@ -114,29 +67,6 @@ contract EternalCore is AccessControl, IEternalCore {
         });
         grantList.push(newGrant);
         return grantListLength++;
-    }
-
-    // fix grantEASInfo
-    function _grantEASAttestation(
-        uint256 _grantId,
-        address _recipientId,
-        uint64 _expirationTime,
-        bytes memory _data,
-        uint256 _value
-    ) internal returns (bytes32) {
-        AttestationRequest memory attestationRequest = AttestationRequest(
-            grantIdToEASInfo[_grantId].schemaUID,
-            AttestationRequestData({
-                recipient: _recipientId,
-                expirationTime: _expirationTime,
-                revocable: grantIdToEASInfo[_grantId].revocable,
-                refUID: 0, // tbd
-                data: _data,
-                value: _value
-            })
-        );
-        // return new attestation UID
-        return IEAS(grantIdToEASInfo[_grantId].eas).attest(attestationRequest);
     }
 
     function RegisterApplication(
@@ -204,6 +134,77 @@ contract EternalCore is AccessControl, IEternalCore {
         for (uint256 i = 0; i < _projectId.length; i++) {
             vote(_grantId, _projectId[i], _voteWeight[i], _message[i]);
         }
+    }
+
+    function _createPool(
+        address _organizer,
+        address _token,
+        uint256 _amount,
+        string memory _organizationInfo
+    ) internal returns (address pool) {
+        bytes memory bytecode = type(PoolContract).creationCode;
+        bytes32 salt = keccak256(
+            abi.encodePacked(_organizer, _organizationInfo)
+        );
+        assembly {
+            pool := create2(0, add(bytecode, 32), mload(bytecode), salt)
+        }
+        uint256 deposited;
+        if (_token == address(0)) {
+            deposited = IPool(pool)._depositETH(pool, _amount);
+        } else {
+            deposited = IPool(pool)._deposit(pool, _token, _amount);
+        }
+        Pool memory newPool = Pool({
+            owner: _organizer,
+            token: _token,
+            totalDeposited: deposited,
+            poolAddress: pool
+        });
+        addressToPool[pool] = newPool;
+        allPools.push(pool);
+        emit PoolCreated(pool, msg.sender, _token, deposited);
+        return pool;
+    }
+
+    function _initializeEAS(
+        address _eas, // EAS contract address
+        ISchemaRegistry _schemaRegistry, // public registry address
+        bytes32 _schemaUID,
+        uint256 _grantId
+    ) internal {
+        SchemaRecord memory record = _schemaRegistry.getSchema(_schemaUID);
+        EASInfo memory newEASInfo = EASInfo({
+            eas: _eas,
+            schemaRegistry: _schemaRegistry,
+            schema: record.schema,
+            schemaUID: _schemaUID,
+            revocable: record.revocable
+        });
+        grantIdToEASInfo[_grantId] = newEASInfo;
+    }
+
+    // fix grantEASInfo
+    function _grantEASAttestation(
+        uint256 _grantId,
+        address _recipientId,
+        uint64 _expirationTime,
+        bytes memory _data,
+        uint256 _value
+    ) internal returns (bytes32) {
+        AttestationRequest memory attestationRequest = AttestationRequest(
+            grantIdToEASInfo[_grantId].schemaUID,
+            AttestationRequestData({
+                recipient: _recipientId,
+                expirationTime: _expirationTime,
+                revocable: grantIdToEASInfo[_grantId].revocable,
+                refUID: 0, // tbd
+                data: _data,
+                value: _value
+            })
+        );
+        // return new attestation UID
+        return IEAS(grantIdToEASInfo[_grantId].eas).attest(attestationRequest);
     }
 
     function getGrantEAS(
