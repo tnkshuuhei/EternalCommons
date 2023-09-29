@@ -7,11 +7,12 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IEAS, Attestation, AttestationRequest, AttestationRequestData} from "@ethereum-attestation-service/eas-contracts/contracts/IEAS.sol";
 import {ISchemaRegistry, ISchemaResolver, SchemaRecord} from "@ethereum-attestation-service/eas-contracts/contracts/ISchemaRegistry.sol";
 import {InvalidEAS, uncheckedInc} from "@ethereum-attestation-service/eas-contracts/contracts/Common.sol";
+import {SchemaResolver} from "./SchemaResolver.sol";
 import {IEternalCore} from "./interface/IEternalCore.sol";
 import {IPool} from "./interface/IPool.sol";
 import {PoolContract} from "./PoolContract.sol";
 
-contract EternalCore is IEternalCore {
+contract EternalCore is IEternalCore, SchemaResolver, AccessControl {
     IEAS public eas;
     EASInfo public easInfo;
 
@@ -331,5 +332,25 @@ contract EternalCore is IEternalCore {
         uint256 _grantId
     ) public view returns (Allocation[] memory) {
         return grantIdToAllocations[_grantId];
+    }
+
+    /// @notice Returns if this contract is payable or not
+    /// @return True if the attestation is payable, false otherwise
+    function isPayable() public pure override returns (bool) {
+        return true;
+    }
+
+    function onAttest(
+        Attestation calldata,
+        uint256
+    ) internal pure override returns (bool) {
+        return true;
+    }
+
+    function onRevoke(
+        Attestation calldata,
+        uint256
+    ) internal pure override returns (bool) {
+        return true;
     }
 }
