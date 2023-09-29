@@ -44,7 +44,7 @@ interface IEternalCore {
         uint256 sqrtSumSqared;
     }
     struct EASInfo {
-        IEAS eas;
+        address eas;
         ISchemaRegistry schemaRegistry;
         bytes32 schemaUID;
         string schema;
