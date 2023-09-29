@@ -15,20 +15,37 @@ import {PoolContract} from "./PoolContract.sol";
 contract EternalCore is IEternalCore, SchemaResolver, AccessControl {
     IEAS public eas;
     EASInfo public easInfo;
+    IERC20 public token;
 
-    mapping(uint256 => Allocation[]) public grantIdToAllocations; //grantId to Allocation
-    mapping(uint256 => EASInfo) public grantIdToEASInfo; // grantId to EASInfo
+    // grantId -> Allocation list
+    mapping(uint256 => Allocation[]) public grantIdToAllocations;
+
+    // grantId -> EASInfo list
+    mapping(uint256 => EASInfo[]) public grantIdToEASInfo;
+
+    // grantId -> projectId -> Vote list
     mapping(uint256 => mapping(uint256 => Vote[]))
-        public grantIdToProjectIdToVotes; // grantId to projectId to votes
-    mapping(uint256 => Badgeholder[]) public grantIdToBadgeholders; //grantId to badgeholder
-    mapping(uint256 => Project[]) public grantIdToProjects; //map grantId to projects
-    mapping(address => Pool) public addressToPool; //map pool address to pool
+        public grantIdToProjectIdToVotes;
 
+    // grantId -> Badgeholder list
+    mapping(uint256 => Badgeholder[]) public grantIdToBadgeholders;
+
+    // grantId -> Project list
+    mapping(uint256 => Project[]) public grantIdToProjects;
+
+    // Pool address -> Pool info
+    mapping(address => Pool) public addressToPool;
+
+    // List of all grants
     Grant[] public grantList;
+
+    // Total number of grants
     uint256 public grantListLength;
+
+    // Total number of projects
     uint256 public projectListLength;
 
-    IERC20 public token;
+    // List of all pool addresses
     address[] public allPools;
 
     function setUpBadgeholder(
@@ -168,54 +185,71 @@ contract EternalCore is IEternalCore, SchemaResolver, AccessControl {
         return pool;
     }
 
-    function _initializeEAS(
-        address _eas, // EAS contract address
-        ISchemaRegistry _schemaRegistry, // public registry address
-        bytes32 _schemaUID,
-        uint256 _grantId
-    ) internal {
+    // Creates an EASInfo instance based on provided inputs.
+    function _createEASInfo(
+        IEAS _eas,
+        ISchemaRegistry _schemaRegistry,
+        bytes32 _schemaUID
+    ) internal view returns (EASInfo memory) {
+        require(address(_eas) != address(0), "Invalid EAS address");
+
         SchemaRecord memory record = _schemaRegistry.getSchema(_schemaUID);
-        EASInfo memory newEASInfo = EASInfo({
-            eas: _eas,
-            schemaRegistry: _schemaRegistry,
-            schema: record.schema,
-            schemaUID: _schemaUID,
-            revocable: record.revocable
-        });
-        grantIdToEASInfo[_grantId] = newEASInfo;
+
+        return
+            EASInfo({
+                eas: _eas,
+                schemaRegistry: _schemaRegistry,
+                schemaUID: _schemaUID,
+                schema: record.schema,
+                revocable: record.revocable
+            });
     }
 
-    // fix grantEASInfo
+    // Initializes the EAS with the provided grant and payment schema UIDs.
+    function _initializeEAS(
+        IEAS _eas,
+        ISchemaRegistry _schemaRegistry,
+        bytes32 _grantschemaUID,
+        bytes32 _paymentschemaUID,
+        uint256 _grantId
+    ) internal {
+        __SchemaResolver_init(_eas);
+        grantIdToEASInfo[_grantId].push(
+            _createEASInfo(_eas, _schemaRegistry, _grantschemaUID)
+        );
+        grantIdToEASInfo[_grantId].push(
+            _createEASInfo(_eas, _schemaRegistry, _paymentschemaUID)
+        );
+    }
+
+    // Grants an attestation based on the EAS information associated with a specific grantId.
     function _grantEASAttestation(
         uint256 _grantId,
-        address _recipientId,
-        uint64 _expirationTime,
+        address _recipient,
         bytes memory _data,
-        uint256 _value
+        uint256 _value,
+        uint256 _index // Expected: 0 for grant, 1 for payment
     ) internal returns (bytes32) {
-        AttestationRequest memory attestationRequest = AttestationRequest(
-            grantIdToEASInfo[_grantId].schemaUID,
+        require(
+            grantIdToEASInfo[_grantId].length > _index,
+            "Invalid index or no EASInfo found for given grantId"
+        );
+
+        EASInfo memory info = grantIdToEASInfo[_grantId][_index];
+
+        AttestationRequest memory request = AttestationRequest(
+            info.schemaUID,
             AttestationRequestData({
-                recipient: _recipientId,
-                expirationTime: _expirationTime,
-                revocable: grantIdToEASInfo[_grantId].revocable,
-                refUID: 0, // tbd
+                recipient: _recipient,
+                expirationTime: 0, // This could be an input or derived value in future.
+                revocable: info.revocable,
+                refUID: 0, // Placeholder; needs clarification.
                 data: _data,
                 value: _value
             })
         );
-        // return new attestation UID
-        return IEAS(grantIdToEASInfo[_grantId].eas).attest(attestationRequest);
-    }
 
-    function getGrantEAS(
-        uint256 _grantId
-    ) public view returns (EASInfo memory) {
-        require(
-            grantIdToEASInfo[_grantId].eas != address(0),
-            "EAS not initialized"
-        );
-        return grantIdToEASInfo[_grantId];
+        return IEAS(info.eas).attest(request);
     }
 
     function getVote(
